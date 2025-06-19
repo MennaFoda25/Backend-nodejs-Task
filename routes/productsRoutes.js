@@ -7,12 +7,15 @@ const {
   updateProduct,
   deleteProduct
 } = require('../services/productsServices');
+const {
+ createProductValidator
+} = require('../utils/validators/productsValidator');
 
 const { protect, allowedTo } = require('../middlewares/authMiddleware');
 
 
 router.route('/')
-  .post(protect, allowedTo('admin'),createProduct)
+  .post(protect, allowedTo('admin'),createProductValidator,createProduct)
   .get(getAllProducts);
 
 router.route('/:id')

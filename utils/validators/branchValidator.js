@@ -1,31 +1,52 @@
-const { check } = require('express-validator');
+// 📁 middlewares/validators/branchValidator.js
+const { body, param } = require('express-validator');
 const validatorMiddleware = require('../../middlewares/validatorMiddleware');
 
-exports.getBranchValidator = [
-  check('id').isMongoId().withMessage('Invalid branch id format'),
-  validatorMiddleware,
-];
 
 exports.createBranchValidator = [
-  check('name')
+  body('name')
     .notEmpty()
-    .withMessage('branch name is required')
+    .withMessage('Branch name is required')
     .isLength({ max: 32 })
-    .withMessage('Too long category name'),
-  check('address').notEmpty().withMessage('branch address is required').isLength({ max: 255 }),
-  check('phone')
+    .withMessage('Too long branch name'),
+
+  body('address')
+    .notEmpty()
+    .withMessage('Branch address is required')
+    .isLength({ max: 255 })
+    .withMessage('Too long branch address'),
+
+  body('phone')
     .optional()
-    .isMobilePhone('ar-EG')
-    .withMessage('Invalid phone number only accepted Egy and SA Phone numbers'), 
-     validatorMiddleware,
+    .matches(/^01[0-2,5]{1}[0-9]{8}$/)
+    .withMessage('Invalid Egyptian phone number'),
+    validatorMiddleware
+];
+
+exports.getBranchValidator = [
+  param('id').isInt().withMessage('Branch ID must be an integer'),
+  validatorMiddleware
 ];
 
 exports.updateBranchValidator = [
-  check('id').isMongoId().withMessage('Invalid branch id format'),
-  validatorMiddleware,
+  param('id').isInt().withMessage('Branch ID must be an integer'),
+
+  body('name')
+    .optional()
+    .isLength({ max: 32 })
+    .withMessage('Too long branch name'),
+
+  body('address')
+    .optional()
+    .isLength({ max: 255 })
+    .withMessage('Too long branch address'),
+
+  body('phone')
+    .optional()
+    .matches(/^01[0-2,5]{1}[0-9]{8}$/)
+    .withMessage('Invalid Egyptian phone number'),validatorMiddleware
 ];
 
 exports.deleteBranchValidator = [
-  check('id').isMongoId().withMessage('Invalid branch id format'),
-  validatorMiddleware,
+  param('id').isInt().withMessage('Branch ID must be an integer'),validatorMiddleware
 ];

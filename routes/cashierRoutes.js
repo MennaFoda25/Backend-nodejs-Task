@@ -1,5 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const { createCashierValidator,
+getCashierValidator,
+updateCashierValidator,
+deleteCashierValidator
+} = require('../utils/validators/cashierValidator');
 const {
   createCashier,
   getAllCashiers,
@@ -11,12 +16,12 @@ const {
 const { protect, allowedTo } = require('../middlewares/authMiddleware');
 
 router.route('/')
-  .post( protect, allowedTo('admin'),createCashier)
+  .post( protect, allowedTo('admin'),createCashierValidator,createCashier)
   .get(protect, allowedTo('admin'),getAllCashiers);
 
 router.route('/:id')
-  .get(protect, allowedTo('admin'),getCashierById)
-  .put(protect, allowedTo('admin'),updateCashier)
-  .delete(protect, allowedTo('admin'),deleteCashier);
+  .get(protect, allowedTo('admin'),getCashierValidator,getCashierById)
+  .put(protect, allowedTo('admin'),updateCashierValidator,updateCashier)
+  .delete(protect, allowedTo('admin'),deleteCashierValidator,deleteCashier);
 
 module.exports = router;

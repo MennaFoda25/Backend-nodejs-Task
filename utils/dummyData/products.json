@@ -1,0 +1,73 @@
+[
+  {
+    "name": "Fjallraven - Foldsack No. 1 Backpack, Fits 15 Laptops",
+    "slug": "fjallraven-foldsack-no.-1-backpack-fits-15-laptops",
+    "price": 109.95,
+    "category": "61b2a9d869d54640ca3d7293",
+    "image": "https://fakestoreapi.com/img/81fPKd-2AYL._AC_SL1500_.jpg"
+  },
+  {
+    "name": "Mens Casual Premium Slim Fit T-Shirts",
+    "slug": "mens-casual-premium-slim-fit-t-shirts",
+    "price": 22.3,
+    "category": "61b2a9d869d54640ca3d7293",
+    "image": "https://fakestoreapi.com/img/71-3HjGNDUL._AC_SY879._SX._UX._SY._UY_.jpg"
+  },
+  {
+    "name": "Mens Cotton Jacket",
+    "slug": "mens-cotton-jacket",
+    "price": 55.99,
+    "category": "61b7a02868424f7846ce1d6f",
+    "image": "https://fakestoreapi.com/img/71li-ujtlUL._AC_UX679_.jpg"
+  },
+  {
+    "name": "Mens Casual Slim Fit",
+    "slug": "mens-casual-slim-fit",
+    "price": 15.99,
+    "category": "61b2a9d869d54640ca3d7293",
+    "image": "https://fakestoreapi.com/img/71YXzeOuslL._AC_UY879_.jpg"
+  },
+  {
+    "name": "John Hardy Women's Legends Naga Gold & Silver Dragon Station Chain Bracelet",
+    "slug": "john-hardy-women's-legends-naga-gold-and-silver-dragon-station-chain-bracelet",
+    "price": 695,
+    "category": "61b2a9d869d54640ca3d7293",
+    "image": "https://fakestoreapi.com/img/71pWzhdJNwL._AC_UL640_QL65_ML3_.jpg"
+  },
+  {
+    "name": "Solid Gold Petite Micropave",
+    "slug": "solid-gold-petite-micropave",
+    "price": 168,
+    "category": "61b2a8dd4bad61f4cc4a98ea",
+    "image": "https://fakestoreapi.com/img/61sbMiUnoGL._AC_UL640_QL65_ML3_.jpg"
+  },
+  {
+    "name": "White Gold Plated Princess",
+    "slug": "white-gold-plated-princess",
+    "quantity": 33,
+    "price": 9.99,
+    "category": "61b2a8dd4bad61f4cc4a98ea",
+    "image": "https://fakestoreapi.com/img/61sbMiUnoGL._AC_UL640_QL65_ML3_.jpg"
+  },
+  {
+    "name": "Pierced Owl Rose Gold Plated Stainless Steel Double",
+    "slug": "pierced-owl-rose-gold-plated-stainless-steel-double",
+    "price": 10.99,
+    "category": "61b2a8dd4bad61f4cc4a98ea",
+    "image": "https://fakestoreapi.com/img/51UDEzMJVpL._AC_UL640_QL65_ML3_.jpg"
+  },
+  {
+    "name": "WD 2TB Elements Portable External Hard Drive - USB 3.0",
+    "slug": "wd-2tb-elements-portable-external-hard-drive-usb-3.0",
+    "price": 64,
+    "category": "61b2a8dd4bad61f4cc4a98ea",
+    "image": "https://fakestoreapi.com/img/61IBBVJvSDL._AC_SY879_.jpg"
+  },
+  {
+    "name": "SanDisk SSD PLUS 1TB Internal SSD - SATA III 6 Gb/s",
+    "slug": "sandisk-ssd-plus-1tb-internal-ssd-sata-iii-6-gbs",
+    "price": 109,
+    "category": "61b2a8dd4bad61f4cc4a98ea",
+    "image": "https://fakestoreapi.com/img/61U7T1koQqL._AC_SX679_.jpg"
+  }
+]

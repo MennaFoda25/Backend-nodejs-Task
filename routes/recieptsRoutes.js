@@ -2,23 +2,14 @@ const express = require('express');
 const router = express.Router();
 const {
   createReceipt,
-  getAllReceipts,
-  getTopCashiers
+  getAllReceipts
 } = require('../services/recieptsServices');
 
-const AuthService = require('../services/authServices');
-router.use(AuthService.protect);
+const { protect, allowedTo } = require('../middlewares/authMiddleware');
 
 
-router
-  .route('/')
-  .get(getAllReceipts)
-  .post(AuthService.allowedTo('cashier'),createReceipt);
-
-  router.get(
-  '/top-cashiers',
-  AuthService.allowedTo('admin'),
-  getTopCashiers
-);
+router.route('/')
+  .post(protect, allowedTo('cashier'),createReceipt)
+  .get(getAllReceipts);
 
 module.exports = router;

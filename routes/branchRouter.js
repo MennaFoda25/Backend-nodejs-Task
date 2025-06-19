@@ -8,14 +8,16 @@ const {
   deleteBranch
 } = require('../services/branchesServices');
 
+const { protect, allowedTo } = require('../middlewares/authMiddleware');
+
 router.route('/')
-  .post(createBranch)
-  .get(getAllBranches);
+  .post( protect, allowedTo('admin'),createBranch)
+  .get( protect, allowedTo('admin'),getAllBranches);
 
 router.route('/:id')
-  .get(getBranchById)
-  .put(updateBranch)
-  .delete(deleteBranch);
+  .get( protect, allowedTo('admin'),getBranchById)
+  .put( protect, allowedTo('admin'),updateBranch)
+  .delete(protect, allowedTo('admin'),deleteBranch);
 
 module.exports = router;
 

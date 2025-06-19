@@ -1,12 +1,12 @@
-// config/db.js
+require('dotenv').config();
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  user: 'postgres', // default user
-  host: 'localhost',
-  database: 'Backend-ttask', // name you created in pgAdmin
-  password: 'yalla259..',  // the one you used during install
-  port: 5432                       // default PostgreSQL port
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  database: process.env.DB_NAME,
+  host: process.env.DB_HOST,
+  port: 5432
 });
 
 module.exports = pool;

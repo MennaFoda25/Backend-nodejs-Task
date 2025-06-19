@@ -1,41 +1,23 @@
 const express = require('express');
+const router = express.Router();
 const {
-  getProductValidator,
-  createProductValidator,
-  updateProductValidator,
-  deleteProductValidator,
-} = require('../utils/validators/productsValidator');
-
-const {
-  getProducts,
-  getProduct,
   createProduct,
+  getAllProducts,
+  getProductById,
   updateProduct,
-  deleteProduct,
-  uploadProductImage,
-  resizeImage
+  deleteProduct
 } = require('../services/productsServices');
-const AuthService = require('../services/authServices');
 
+const { protect, allowedTo } = require('../middlewares/authMiddleware');
 
-const router = express.Router({ mergeParams: true });
-
-router.use(AuthService.protect);
-
-router.route('/').get(getProducts)
-
-router.use(AuthService.allowedTo('admin'));
 
 router.route('/')
-.post(uploadProductImage,
-  resizeImage,
-  createProductValidator,
-  createProduct);
-router
-  .route('/:id')
-  .get(getProductValidator, getProduct)
-  .put(uploadProductImage,
-  resizeImage,updateProductValidator, updateProduct)
-  .delete(deleteProductValidator, deleteProduct);
+  .post(protect, allowedTo('admin'),createProduct)
+  .get(getAllProducts);
+
+router.route('/:id')
+  .get(protect, allowedTo('admin'),getProductById)
+  .put(protect, allowedTo('admin'),updateProduct)
+  .delete(protect, allowedTo('admin'),deleteProduct);
 
 module.exports = router;

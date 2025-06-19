@@ -1,147 +1,73 @@
-const Receipt = require('../models/recieptsModel');
-const Cashier = require('../models/cashiersModel');
-const Product = require('../models/productsModel');
-const asyncHandler = require('express-async-handler');
-const ApiFeatures = require('../utils/apiFeatures');
-const ApiError = require('../utils/apiError');
+const pool = require('../config/database');
 
-// Create Receipt
-exports.createReceipt = asyncHandler(async (req, res, next) => {
-  const { products } = req.body;
+exports.createReceipt = async (req, res) => {
+  const { cashier_id, products } = req.body;
+  try {
+    // Step 1: Calculate total
+    let total = 0;
 
-  let total = 0;
-
-  for (const item of products) {
-    const product = await Product.findById(item.product);
-    if (!product) {
-      return next(new ApiError(`Product not found: ${item.product}`, 404));
+    for (let item of products) {
+      const result = await pool.query('SELECT price FROM products WHERE id = $1', [item.product_id]);
+      if (result.rowCount === 0) {
+        return res.status(400).json({ error: `Product ${item.product_id} not found` });
+      }
+      const price = parseFloat(result.rows[0].price);
+      total += price * item.quantity;
     }
-    total += product.price * item.quantity;
-  }
 
-  const receipt = await Receipt.create({
-    cashier: req.user._id,
-    products,
-    totalAmount: total
-  });
-
-  res.status(201).json({ status: 'success', data: receipt });
-});
-
-// Get All Receipts (with filters and pagination)
-exports.getAllReceipts = asyncHandler(async (req, res) => {
-  let filter = {};
-
-  // Filter by cashier
-  if (req.query.cashier) filter.cashier = req.query.cashier;
-
-  // Filter by branch
-  if (req.query.branch) {
-    // find all cashiers in this branch
-    const cashiers = await Cashier.find({ branch: req.query.branch }).select('_id');
-    filter.cashier = { $in: cashiers.map(c => c._id) };
-  }
-
-  // Filter by date
-  if (req.query.startDate || req.query.endDate) {
-    filter.createdAt = {};
-    if (req.query.startDate) {
-      filter.createdAt.$gte = new Date(req.query.startDate);
-    }
-    if (req.query.endDate) {
-      filter.createdAt.$lte = new Date(req.query.endDate);
-    }
-  }
-
-  // Filter by total amount
-  if (req.query.minTotal || req.query.maxTotal) {
-    filter.totalAmount = {};
-    if (req.query.minTotal) filter.totalAmount.$gte = Number(req.query.minTotal);
-    if (req.query.maxTotal) filter.totalAmount.$lte = Number(req.query.maxTotal);
-  }
-
-  const totalReceipts = await Receipt.countDocuments(filter);
-
-  const features = new ApiFeatures(Receipt.find(filter)
-    .populate('cashier', 'name email')
-    .populate('products.product', 'name price category'), req.query)
-    .sort()
-    .limitFields()
-    .paginate(totalReceipts);
-
-  const { mongooseQuery, paginationResult } = features;
-  const receipts = await mongooseQuery;
-
-  // Filter by product name, category or price (after population)
-  if (req.query.productName || req.query.productCategory || req.query.productPrice) {
-    const name = req.query.productName?.toLowerCase();
-    const category = req.query.productCategory?.toLowerCase();
-    const price = Number(req.query.productPrice);
-
-    const filteredReceipts = receipts.filter((receipt) =>
-      receipt.products.some(({ product }) => {
-        return (
-          (!name || product.name?.toLowerCase().includes(name)) &&
-          (!category || product.category?.toLowerCase().includes(category)) &&
-          (!req.query.productPrice || product.price === price)
-        );
-      })
+    // Step 2: Insert into receipts
+    const receiptResult = await pool.query(
+      'INSERT INTO receipts (cashier_id, total_amount) VALUES ($1, $2) RETURNING *',
+      [cashier_id, total]
     );
+    const receipt = receiptResult.rows[0];
 
-    return res.status(200).json({
-      results: filteredReceipts.length,
-      paginationResult,
-      data: filteredReceipts
-    });
-  }
-
-  res.status(200).json({
-    results: receipts.length,
-    paginationResult,
-    data: receipts
-  });
-});
-
-
-exports.getTopCashiers = asyncHandler(async (req, res) => {
-  const topCashiers = await Receipt.aggregate([
-    {
-      $group: {
-        _id: '$cashier',
-        receiptCount: { $sum: 1 }
-      }
-    },
-    {
-      $sort: { receiptCount: -1 }
-    },
-    {
-      $limit: 3
-    },
-    {
-      $lookup: {
-        from: 'cashiers',
-        localField: '_id',
-        foreignField: '_id',
-        as: 'cashier'
-      }
-    },
-    {
-      $unwind: '$cashier'
-    },
-    {
-      $project: {
-        _id: 0,
-        cashierId: '$cashier._id',
-        name: '$cashier.name',
-        email: '$cashier.email',
-        receiptCount: 1
-      }
+    // Step 3: Insert into receipt_products
+    for (let item of products) {
+      await pool.query(
+        'INSERT INTO receipt_products (receipt_id, product_id, quantity) VALUES ($1, $2, $3)',
+        [receipt.id, item.product_id, item.quantity]
+      );
     }
-  ]);
 
-  res.status(200).json({
-    status: 'success',
-    results: topCashiers.length,
-    data: topCashiers
-  });
-});
+    res.status(201).json({ message: 'Receipt created successfully', receipt_id: receipt.id, total });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Get all receipts (with product + branch info)
+exports.getAllReceipts = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        r.id AS receipt_id,
+        r.created_at,
+        r.total_amount,
+        c.name AS cashier_name,
+        b.name AS branch_name,
+        json_agg(
+          json_build_object(
+            'product_name', p.name,
+            'category', p.category,
+            'price', p.price,
+            'quantity', rp.quantity
+          )
+        ) AS products
+      FROM receipts r
+      JOIN cashiers c ON r.cashier_id = c.id
+      JOIN branches b ON c.branch_id = b.id
+      JOIN receipt_products rp ON r.id = rp.receipt_id
+      JOIN products p ON rp.product_id = p.id
+      GROUP BY r.id, c.name, b.name
+      ORDER BY r.created_at DESC
+    `);
+
+    res.status(200).json({
+      results: result.rowCount,
+      data: result.rows
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

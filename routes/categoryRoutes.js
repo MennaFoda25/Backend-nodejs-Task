@@ -16,6 +16,8 @@ const {
   deleteCategory,
 } = require('../services/categoryServices');
 
+const { protect, allowedTo } = require('../middlewares/authMiddleware');
+
 const router = express.Router();
 
 router.use(AuthService.protect);

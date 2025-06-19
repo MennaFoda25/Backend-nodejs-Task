@@ -8,13 +8,15 @@ const {
   deleteCashier
 } = require('../services/cashiersServices');
 
+const { protect, allowedTo } = require('../middlewares/authMiddleware');
+
 router.route('/')
-  .post(createCashier)
-  .get(getAllCashiers);
+  .post( protect, allowedTo('admin'),createCashier)
+  .get(protect, allowedTo('admin'),getAllCashiers);
 
 router.route('/:id')
-  .get(getCashierById)
-  .put(updateCashier)
-  .delete(deleteCashier);
+  .get(protect, allowedTo('admin'),getCashierById)
+  .put(protect, allowedTo('admin'),updateCashier)
+  .delete(protect, allowedTo('admin'),deleteCashier);
 
 module.exports = router;

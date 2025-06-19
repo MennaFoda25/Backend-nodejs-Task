@@ -1,129 +1,72 @@
-const crypto = require('crypto');
-
-const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const pool = require('../config/database');
 
-const asyncHandler = require('express-async-handler');
-const ApiError = require('../utils/apiError');
-const createToken = require('../utils/createToken');
+// Utility: Generate JWT
+const generateToken = (userId, role) => {
+  return jwt.sign(
+    { userId, role },
+    process.env.JWT_SECRET || 'your_jwt_secret',
+    { expiresIn: '7d' }
+  );
+};
 
-const Admin = require('../models/adminModel');
-const Cashier = require('../models/cashiersModel');
+// Signup (Cashier or Admin)
+exports.signup = async (req, res) => {
+  const { name, email, password, branch_id, role } = req.body;
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-// @desc    Login
-// @route   GET /api/v1/auth/login
-// @access  Public
-exports.login = asyncHandler (async (req, res) => {
-  const { email, password } = req.body;
-
-    // check if Admin first
-    let user = await Admin.findOne({ email });
-    let role = 'admin';
-
-    if (!user) {
-      // else check Cashier
-      user = await Cashier.findOne({ email });
-      role = 'cashier';
+    // Only insert into correct table
+    let insertQuery = '';
+    if (role === 'admin') {
+      insertQuery = `
+        INSERT INTO admins (name, email, password)
+        VALUES ($1, $2, $3) RETURNING id
+      `;
+    } else if (role === 'cashier') {
+      insertQuery = `
+        INSERT INTO cashiers (name, email, password, branch_id)
+        VALUES ($1, $2, $3, $4) RETURNING id
+      `;
+    } else {
+      return res.status(400).json({ error: 'Invalid role' });
     }
 
-    if (!user)
-      return res.status(400).json({ message: 'Invalid email or password' });
+    const result = await pool.query(insertQuery, [name, email, hashedPassword, branch_id]);
+    const userId = result.rows[0].id;
 
-  const isMatch = await bcrypt.compare(req.body.password, user.password)
-    if (!isMatch)
-      return res.status(400).json({ message: 'Invalid email or password' });
-
-    // Create JWT
-   const token = createToken(user,role);
-
-   // Delete password from response
-  delete user._doc.password;
-
-    res.status(200).json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        role
-      }
-    });
-});
-
-
-
-// // @desc   make sure the user is logged in
-exports.protect = asyncHandler(async (req, res, next) => {
-  // 1) Check if token exist, if exist get
-  let token;
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
-  ) {
-    token = req.headers.authorization.split(' ')[1];
+    const token = generateToken(userId, role);
+    res.status(201).json({ token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  if (!token) {
-    return next(
-      new ApiError(
-        'You are not login, Please login to get access this route',
-        401
-      )
-    );
-  }
+};
 
-  // 2) Verify token (no change happens, expired token)
-  const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+// Login
+exports.login = async (req, res) => {
+  const { email, password, role } = req.body;
 
-let currentUser;
-   if (decoded.role === 'admin') {
-    currentUser = await Admin.findById(decoded.userId);
-  } else if (decoded.role === 'cashier') {
-    currentUser = await Cashier.findById(decoded.userId);
-  }
-  // 3) Check if user exists
-//   const currentUser = await Admin.findById(decoded.userId);
-   if (!currentUser) {
-    return next(
-      new ApiError(
-        'The user that belong to this token does no longer exist',
-        401
-      )
-    );
-  }
-
-  // 4) Check if user change his password after token created
-  if (currentUser.passwordChangedAt) {
-    const passChangedTimestamp = parseInt(
-      currentUser.passwordChangedAt.getTime() / 1000,
-      10
-    );
-    // Password changed after token created (Error)
-    if (passChangedTimestamp > decoded.iat) {
-      return next(
-        new ApiError(
-          'User recently changed his password. please login again..',
-          401
-        )
-      );
+  try {
+    let userQuery = '';
+    if (role === 'admin') {
+      userQuery = 'SELECT * FROM admins WHERE email = $1';
+    } else if (role === 'cashier') {
+      userQuery = 'SELECT * FROM cashiers WHERE email = $1';
+    } else {
+      return res.status(400).json({ error: 'Invalid role' });
     }
-  }
 
-  req.user = currentUser;
- req.user.role = decoded.role; 
-  next();
-});
+    const result = await pool.query(userQuery, [email]);
+    const user = result.rows[0];
 
-
-
-// // @desc    Authorization (User Permissions)
-// // ["admin", "cashier"]
-exports.allowedTo = (...roles) =>
-  asyncHandler(async (req, res, next) => {
-    // 1) access roles
-    // 2) access registered user (req.user.role)
-    if (!roles.includes(req.user.role)) {
-      return next(
-        new ApiError('You are not allowed to access this route', 403)
-      );
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
-    next();
-  });
+
+    const token = generateToken(user.id, role);
+    res.status(200).json({ token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

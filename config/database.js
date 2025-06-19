@@ -1,14 +1,12 @@
-const mongoose = require('mongoose');
+// config/db.js
+const { Pool } = require('pg');
 
-const dbConnection = ()=>{
-    // Connect with DB
-    mongoose.connect(process.env.DB_URL).then((conn)=>{
-        console.log(`Database Connected: ${conn.connection.host}`)
-    })
-    // .catch((err)=>{
-    //     console.error(`Database connection error: ${err.message}`);
-    //     process.exit(1); // Exit the process if DB connection fails
-    // })
-}
+const pool = new Pool({
+  user: 'postgres', // default user
+  host: 'localhost',
+  database: 'Backend-ttask', // name you created in pgAdmin
+  password: 'yalla259..',  // the one you used during install
+  port: 5432                       // default PostgreSQL port
+});
 
-module.exports = dbConnection
+module.exports = pool;

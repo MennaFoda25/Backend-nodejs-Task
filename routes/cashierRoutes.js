@@ -1,45 +1,20 @@
 const express = require('express');
-
-const { createCashierValidator,
-getCashierValidator,
-updateCashierValidator,
-deleteCashierValidator,
-changeCashierPasswordValidator} = require('../utils/validators/cashierValidator');
+const router = express.Router();
 const {
-  getCashiers,
-getCashier,
-createCashier,
-updateCashier,
-deleteCashier,
-  uploadCashierImage,
-  resizeImage,
-  changeCashierPassword
+  createCashier,
+  getAllCashiers,
+  getCashierById,
+  updateCashier,
+  deleteCashier
 } = require('../services/cashiersServices');
 
+router.route('/')
+  .post(createCashier)
+  .get(getAllCashiers);
 
-const AuthService = require('../services/authServices');
-
-const router = express.Router();
-
-router.use(AuthService.protect);
-
-router.put('/changeMyPassword/:id',changeCashierPasswordValidator, changeCashierPassword);
-
-router.use(AuthService.allowedTo('admin'));
-
-
-router.route('/').get(getCashiers)
-.post(
-  uploadCashierImage,
-  resizeImage,
-  createCashierValidator,
-  createCashier);
-
-router
-  .route('/:id')
-  .get( getCashierValidator,getCashier)
-  .put(uploadCashierImage,
-  resizeImage,updateCashierValidator, updateCashier)
-  .delete(deleteCashierValidator,deleteCashier);
+router.route('/:id')
+  .get(getCashierById)
+  .put(updateCashier)
+  .delete(deleteCashier);
 
 module.exports = router;

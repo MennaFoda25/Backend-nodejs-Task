@@ -1,106 +1,107 @@
-const { v4: uuidv4 } = require("uuid");
-const factory = require('./handlerFactory');
-const Cashier = require('../models/cashiersModel');
-const ApiError = require('../utils/apiError');
-const bcrypt = require('bcryptjs');
-const asyncHandler = require('express-async-handler');
-const sharp = require('sharp');
-const createToken = require('../utils/createToken');
-const { uploadSingleImage } = require('../middlewares/uploadImageMiddleware');
+const pool = require('../config/database');
 
+exports.createCashier = async (req, res) => {
+  const { name, email, password, branch_id } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO cashiers (name, email, password, branch_id) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, email, password, branch_id]
+    );
+    res.status(201).json({ data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
-// Upload single image
-exports.uploadCashierImage = uploadSingleImage('image');
+exports.getAllCashiers = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT c.*, b.name AS branch_name 
+       FROM cashiers c 
+       JOIN branches b ON c.branch_id = b.id
+       ORDER BY c.id`
+    );
+    res.status(200).json({ results: result.rowCount, data: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
-// Image processing
-exports.resizeImage = asyncHandler(async (req, res, next) => {
-  const filename = `cashier-${uuidv4()}-${Date.now()}.jpeg`;
+exports.getCashierById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT c.*, b.name AS branch_name 
+       FROM cashiers c 
+       JOIN branches b ON c.branch_id = b.id
+       WHERE c.id = $1`,
+      [id]
+    );
 
-  await sharp(req.file.buffer)
-    .resize(600, 600)
-    .toFormat('jpeg')
-    .jpeg({ quality: 95 })
-    .toFile(`uploads/cashiers/${filename}`);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Cashier not found' });
+    }
 
-  // Save image into our db
-  req.body.image = filename;
+    res.status(200).json({ data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
-  next();
-});
+exports.updateCashier = async (req, res) => {
+  const { id } = req.params;
+  const fields = ['name', 'email', 'password', 'branch_id'];
+  const updates = [];
+  const values = [];
 
-
-// @desc    Get list of cashiers
-// @route   GET /api/v1/cashiers
-// @access  Public
-exports.getCashiers = factory.getAll(Cashier, 'Cashiers');
-
-// @desc    Get specific Cashier by id
-// @route   GET /api/v1/Cashier/:id
-// @access  Public
-exports.getCashier = factory.getOne(Cashier);
-
-// @desc    Signup
-// @route   GET /api/v1/admin/signup
-// @access  Public
-exports.createCashier = asyncHandler(async (req, res, next) => {
-  // 1- Create user
-  const cashier = await Cashier.create({
-    name: req.body.name,
-    email: req.body.email,
-    password: req.body.password,
-    branch: req.body.branch,
-    image: req.body.image
+  fields.forEach((field, index) => {
+    if (req.body[field] !== undefined) {
+      updates.push(`${field} = $${updates.length + 1}`);
+      values.push(req.body[field]);
+    }
   });
 
-  // 2- Generate token
-  const token = createToken(cashier._id);
-
-  res.status(201).json({ data: cashier, token });
-});
-
-// @desc    Update specific Cashier
-// @route   PUT /api/v1/Cashier/:id
-// @access  Private
-exports.updateCashier = asyncHandler(async (req, res, next) => {
-  const document = await Cashier.findByIdAndUpdate(
-    req.params.id,
-    {
-      name: req.body.name,
-      slug: req.body.slug,
-      email: req.body.email,
-      image: req.body.image,
-      role: req.body.role,
-    },
-    {
-      new: true,
-    }
-  );
-
-  if (!document) {
-    return next(new ApiError(`No document for this id ${req.params.id}`, 404));
+  if (updates.length === 0) {
+    return res.status(400).json({ error: 'No fields provided to update' });
   }
-  res.status(200).json({ data: document });
-});
 
-exports.changeCashierPassword = asyncHandler(async (req, res, next) => {
-  const document = await Cashier.findByIdAndUpdate(
-    req.params.id,
-    {
-      password: await bcrypt.hash(req.body.password, 12),
-     // passwordChangedAt: Date.now(),
-    },
-    {
-      new: true,
+  values.push(id); // last value is the ID
+  const updateQuery = `UPDATE cashiers SET ${updates.join(', ')} WHERE id = $${values.length} RETURNING *`;
+
+  try {
+    const result = await pool.query(updateQuery, values);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Cashier not found' });
     }
-  );
-  if (!document) {
-    return next(new ApiError(`No document for this id ${req.params.id}`, 404));
+    res.status(200).json({ data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  res.status(200).json({ data: document });
-});
+};
+exports.deleteCashier = async (req, res) => {
+  const { id } = req.params;
 
+  try {
+    // Check if receipts exist
+    const receipts = await pool.query(
+      'SELECT id FROM receipts WHERE cashier_id = $1',
+      [id]
+    );
+    if (receipts.rowCount > 0) {
+      return res.status(400).json({ error: 'Cannot delete cashier with existing receipts' });
+    }
 
-// @desc    Delete specific Cashier
-// @route   DELETE /api/v1/Cashier/:id
-// @access  Private
-exports.deleteCashier = factory.deleteOne(Cashier);
+    const result = await pool.query(
+      'DELETE FROM cashiers WHERE id = $1 RETURNING *',
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Cashier not found' });
+    }
+
+    res.status(204).send();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
